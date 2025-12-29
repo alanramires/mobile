@@ -1,10 +1,8 @@
 import Quadrado from "@/components/Quadrado";
-import { calcularVencedor, verificarEmpate } from "@/scripts/utils";
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-
-
- 
+import { createRoom, ensureAnonAuth } from "@/scripts/multiplayer";
+import { applyMove, calcularVencedor, createInitialGameState, type GameState, verificarEmpate } from "@/scripts/utils";
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 // ----------------------------------------------
 //                TELA INICIAL
@@ -13,26 +11,45 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 export default function Index() {
 
   // --------------------------------
+  //      EFEITOS COLATERAIS
+  // --------------------------------
+  useEffect(() => {
+  ensureAnonAuth()
+    .then((user) => console.log("✅ UID:", user.uid))
+    .catch((err) => console.log("❌ Auth error:", err));
+}, []);
+
+
+  // --------------------------------
   //        ESTADOS DO COMPONENTE
   // -------------------------------- 
-  const [tabuleiro, setTabuleiro] = useState<(string | null)[]>(
-    Array(9).fill(null)
-  );
-  const [xEhAVez, setXEhAVez] = useState(true);
-
-
-  const resultado = calcularVencedor(tabuleiro);
+//  const [tabuleiro, setTabuleiro] = useState<(string | null)[]>(    Array(9).fill(null)  );
+//  const [xEhAVez, setXEhAVez] = useState(true);
+  const [game, setGame] = useState<GameState>(() => createInitialGameState());
+  const resultado = calcularVencedor(game.board);
   const vencedor = resultado?.jogador;
   const linhaVencedora = resultado?.linha;
+  const empate = !vencedor && verificarEmpate(game.board);
 
-  const empate = !vencedor && verificarEmpate(tabuleiro);
+
+
 
   // --------------------------------
   //        FUNÇÕES DO COMPONENTE
   // -------------------------------- 
   function handlePress(indice: number) {
+
+    //setGame((prev) => applyMove(prev, indice, prev.turn)); // o bloco abaixo foi substituído por esta linha que aplica a jogada no estado do jogo
+   
+  console.log("clicou", indice);
+  setGame((prev) => {
+    const next = applyMove(prev, indice, prev.turn);
+    console.log("antes:", prev.board, "depois:", next.board);
+    return next;
+  });
+
     // não permite sobrescrever
-    if (tabuleiro[indice] || vencedor || empate) return;
+    /*if (tabuleiro[indice] || vencedor || empate) return;
 
 
     // cria cópia do tabuleiro
@@ -43,13 +60,14 @@ export default function Index() {
 
     // atualiza estado
     setTabuleiro(novoTabuleiro);
-    setXEhAVez(!xEhAVez);
+    setXEhAVez(!xEhAVez);*/
   }
 
   // reinicia o jogo
   function resetarJogo() {
-  setTabuleiro(Array(9).fill(null));
-  setXEhAVez(true);
+    setGame(createInitialGameState()); // os comandos abaixo foram substituídos por esta linha que zera todo o estado do jogo
+ // setTabuleiro(Array(9).fill(null));
+ // setXEhAVez(true);
 }
 
 // --------------------------------
@@ -57,7 +75,10 @@ export default function Index() {
 // -------------------------------- 
 
   return (
-    <View style={styles.container}>
+    <ScrollView 
+    contentContainerStyle={styles.container}
+    showsVerticalScrollIndicator={false}
+    >
       <Text style={styles.text}>Jogo da Velha</Text>
       {/* Texto que mostra quem está jogando */}
       <Text style={styles.status}>
@@ -65,13 +86,13 @@ export default function Index() {
           ? `Vencedor: ${vencedor}`
           : empate
           ? "Empate!"
-          : `Vez de: ${xEhAVez ? "X" : "O"}`}
+          : `Vez de: ${game.turn}`}
       </Text>
 
 
       {/* Tabuleiro */}
       <View style={styles.board}>
-        {tabuleiro.map((valor, indice) => (
+        {game.board.map((valor, indice) => (
           <Quadrado
             key={indice}
             valor={valor}
@@ -81,12 +102,27 @@ export default function Index() {
         ))}
       </View>
 
-      {/* Botão para resetar o jogo */}
-      <Pressable style={styles.botaoReset} onPress={resetarJogo}>
-        <Text style={styles.textoBotao}>Resetar jogo</Text>
-      </Pressable>
+      <View style={styles.botoesRow}>
+        <Pressable style={[styles.botaoBase, styles.botaoReset]} onPress={resetarJogo}>
+          <Text style={styles.textoBotao}>Resetar</Text>
+        </Pressable>
 
-    </View>
+        <Pressable
+          style={[styles.botaoBase, styles.botaoSala]}
+          onPress={async () => {
+            try {
+              const { roomId } = await createRoom();
+              console.log("🏠 Sala criada:", roomId);
+            } catch (e) {
+              console.log("❌ createRoom error:", e);
+            }
+          }}
+        >
+          <Text style={styles.textoBotao}>Criar sala</Text>
+        </Pressable>
+      </View>
+
+    </ScrollView>
   );
 }
 
@@ -96,12 +132,13 @@ export default function Index() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: "#0f172a", // FORÇA FUNDO BRANCO
-    color: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  flexGrow: 1,
+  backgroundColor: "#0f172a",
+  alignItems: "center",
+  justifyContent: "flex-start",
+  paddingTop: 60,
+  paddingBottom: 140, // IMPORTANTÍSSIMO por causa da TabBar no celular
+},
   text: {
     fontSize: 48,
     fontWeight: "bold",
@@ -133,6 +170,29 @@ textoBotao: {
   color: "#fff",
   fontSize: 18,
   fontWeight: "bold",
+},
+botoesRow: {
+  flexDirection: "row",
+  gap: 12,              // se der erro no seu RN, eu te mostro alternativa abaixo
+  marginTop: 24,
+  paddingHorizontal: 16,
+},
+
+botaoBase: {
+  flex: 1,
+  paddingVertical: 12,
+  borderRadius: 8,
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+
+botaoSala: {
+  backgroundColor: "#3498db",
+   marginTop: 24,
+  paddingVertical: 12,
+  paddingHorizontal: 24,
+  borderRadius: 8,
 },
 
 });
