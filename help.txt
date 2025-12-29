@@ -1,0 +1,7 @@
+// if chamada then condicao else outra condicao --> programação clássica da faculdade
+// chamada ? condicao : outra condicao --> programação moderna
+// variavel?.metodo() -> se variavel for nula, nao chama o metodo
+
+// concatena(umacoisa, coutraisa) -> une duas coisas
+// 'texto' + variavel + 'texto' -> concatena variaveis em string onde + está representando a concatenação (tipico de SQL server, Java, C#)
+// `varavel ${outraVariavel}` -> concatena variaveis em string onde ${ } está representando uma variavel local por escriton

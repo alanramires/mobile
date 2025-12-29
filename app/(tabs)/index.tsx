@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 
+ 
+
 // ----------------------------------------------
 //                TELA INICIAL
 // ----------------------------------------------   
@@ -17,6 +19,7 @@ export default function Index() {
     Array(9).fill(null)
   );
   const [xEhAVez, setXEhAVez] = useState(true);
+
 
   const resultado = calcularVencedor(tabuleiro);
   const vencedor = resultado?.jogador;
